@@ -1,0 +1,52 @@
+name: Weekly OM Scan
+
+on:
+  schedule:
+    # Every Monday at 7:00 AM ET (12:00 UTC)
+    - cron: "0 12 * * 1"
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write      # Create GitHub Issues for matches
+      contents: write    # Cache the SQLite DB between runs
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Restore the SQLite DB from cache so we don't re-alert on known listings
+      - name: Restore database cache
+        uses: actions/cache@v4
+        with:
+          path: data/seen_oms.db
+          key: seen-oms-db-${{ github.run_id }}
+          restore-keys: seen-oms-db-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run OM scanner
+        working-directory: scanner
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: python main.py
+
+      # Save updated DB back to cache
+      - name: Save database cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: data/seen_oms.db
+          key: seen-oms-db-${{ github.run_id }}

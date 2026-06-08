@@ -1,0 +1,137 @@
+# National shops
+brokerages:
+  - name: Cushman & Wakefield
+    url: https://www.cushmanwakefield.com/en/united-states/properties
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: JLL
+    url: https://www.us.jll.com/en/properties/listings
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: CBRE
+    url: https://www.cbre.com/properties/properties-for-sale
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Avison Young
+    url: https://www.avisonyoung.com/properties
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Marcus & Millichap
+    url: https://www.marcusmillichap.com/properties
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Berkadia
+    url: https://www.berkadia.com/listings/
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Northmarq
+    url: https://www.northmarq.com/listings/
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Walker & Dunlop
+    url: https://www.walkerdunlop.com/investment-sales/listings/
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Eastdil Secured
+    url: https://www.eastdilsecured.com/transactions/
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Colliers
+    url: https://www.colliers.com/en-us/properties
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Transwestern
+    url: https://transwestern.com/listings/
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Greysteel
+    url: https://www.greysteel.com/listings/
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+# Regional / specialty shops
+  - name: Foundry Commercial
+    url: https://www.foundrycommercial.com/listings/
+    scrape_type: listing_page
+    markets: [Atlanta, Charlotte, Raleigh-Durham, Nashville, Tampa, Orlando, Jacksonville]
+    asset_filter: multifamily
+
+  - name: Bradley Company
+    url: https://www.bradleyco.com/listings/
+    scrape_type: listing_page
+    markets: [Indianapolis]
+    asset_filter: multifamily
+
+  - name: The Kirkland Company
+    url: https://www.thekirklandcompany.com/current-listings/
+    scrape_type: listing_page
+    markets: [Indianapolis, Cincinnati, Columbus]
+    asset_filter: multifamily
+
+  - name: Franklin Street
+    url: https://franklinst.com/listings/
+    scrape_type: listing_page
+    markets: [Tampa, Orlando, Jacksonville, Atlanta]
+    asset_filter: multifamily
+
+  - name: MMG Real Estate Advisors
+    url: https://www.mmgrea.com/active-listings/
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Landmark Realty Advisors
+    url: https://www.landmarkrea.com/listings/
+    scrape_type: listing_page
+    markets: [Indianapolis, Cincinnati, Columbus, Nashville]
+    asset_filter: multifamily
+
+  - name: Bull Realty
+    url: https://www.bullrealty.com/listings/
+    scrape_type: listing_page
+    markets: [Atlanta]
+    asset_filter: multifamily
+
+# Additional regional shops worth monitoring by market
+  - name: Caddis Partners          # Indianapolis/Midwest land & development
+    url: https://www.caddispartners.com/listings/
+    scrape_type: listing_page
+    markets: [Indianapolis]
+
+  - name: Lee & Associates
+    url: https://www.lee-associates.com/listings/
+    scrape_type: listing_page
+    markets: [Denver, Las Vegas, Salt Lake City, Charlotte, Atlanta]
+
+  - name: Newmark
+    url: https://www.nmrk.com/listings
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: ARA Newmark              # Multifamily specialist
+    url: https://www.ara.com/listings/
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Cushman Sunbelt Land     # Land-focused listings
+    url: https://www.cushmanwakefield.com/en/united-states/properties/land
+    scrape_type: listing_page
+    asset_filter: land
+
+# Scrape config defaults (can be overridden per brokerage)
+defaults:
+  request_delay_seconds: 3        # polite crawl delay between requests
+  timeout_seconds: 30
+  user_agent: "Mozilla/5.0 (compatible; OM-Scanner/1.0; research bot)"
+  max_retries: 2
+  pdf_download: true

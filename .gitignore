@@ -1,0 +1,9 @@
+data/seen_oms.db
+data/pdfs/
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+*.egg-info/
+.DS_Store

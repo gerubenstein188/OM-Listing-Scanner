@@ -1,0 +1,92 @@
+markets:
+  - name: Indianapolis
+    state: IN
+    aliases: [Indy, Indianapolis-Carmel-Anderson]
+  - name: Cincinnati
+    state: OH
+    aliases: [Cincinnati-Wilmington-Maysville]
+  - name: Columbus
+    state: OH
+    aliases: [Columbus-Marion-Zanesville]
+  - name: Nashville
+    state: TN
+    aliases: [Nashville-Davidson-Murfreesboro]
+  - name: Raleigh-Durham
+    state: NC
+    aliases: [Raleigh, Durham, Research Triangle, RTP]
+  - name: Charlotte
+    state: NC
+    aliases: [Charlotte-Concord-Gastonia]
+  - name: Atlanta
+    state: GA
+    aliases: [Atlanta-Sandy Springs-Alpharetta]
+  - name: Tampa
+    state: FL
+    aliases: [Tampa-St. Petersburg-Clearwater]
+  - name: Orlando
+    state: FL
+    aliases: [Orlando-Kissimmee-Sanford]
+  - name: Jacksonville
+    state: FL
+    aliases: [Jacksonville-St. Marys-Palatka]
+  - name: Denver
+    state: CO
+    aliases: [Denver-Aurora-Lakewood, Front Range]
+  - name: Salt Lake City
+    state: UT
+    aliases: [Salt Lake City-Murray, Wasatch Front, SLC]
+  - name: Las Vegas
+    state: NV
+    aliases: [Las Vegas-Henderson-Paradise]
+
+asset_types:
+  multifamily:
+    enabled: true
+    subtypes:
+      - 3-story walk-up
+      - 4-story on grade
+      - mid-rise
+      - garden style        # catch-all for low-rise walk-ups brokers may label differently
+    min_units: 150
+    include_mixed_use: true  # mixed-use with residential component counts
+
+  build_to_rent:
+    enabled: true
+    subtypes:
+      - townhome
+      - single family detached
+      - cottage
+      - horizontal multifamily
+      - BTR community
+    min_units: 50
+
+  land:
+    enabled: true
+    stages:
+      - raw / unentitled
+      - entitled
+      - permitted
+      - redevelopment       # existing structures for demo
+    intended_uses:
+      - multifamily
+      - build-to-rent
+      - mixed-use
+    # No minimum size — evaluate case by case
+
+deal_stage:
+  - development site
+  - entitled land
+  - permitted land
+  - value-add
+  - stabilized            # include stabilized if it meets other criteria
+
+exclusions:
+  asset_types:
+    - senior housing
+    - student housing
+    - affordable / LIHTC only
+    - hospitality
+    - office
+    - industrial
+    - retail (standalone)
+  min_units_override: false  # set true to alert on sub-threshold deals for exceptional sites
