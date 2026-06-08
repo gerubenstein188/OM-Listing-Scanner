@@ -1,12 +1,12 @@
 # National shops
 brokerages:
   - name: Cushman & Wakefield
-    url: https://www.cushmanwakefield.com/en/united-states/properties
+    url: https://multifamily.cushwake.com/Listings?Search=Active
     scrape_type: listing_page
     asset_filter: multifamily
 
   - name: JLL
-    url: https://www.us.jll.com/en/properties/listings
+    url: https://invest.jll.com/us/en
     scrape_type: listing_page
     asset_filter: multifamily
 
@@ -16,7 +16,7 @@ brokerages:
     asset_filter: multifamily
 
   - name: Avison Young
-    url: https://www.avisonyoung.com/properties
+    url: https://www.avisonyoung.us/properties
     scrape_type: listing_page
     asset_filter: multifamily
 
@@ -26,43 +26,53 @@ brokerages:
     asset_filter: multifamily
 
   - name: Berkadia
-    url: https://www.berkadia.com/listings/
+    url: https://www.berkadia.com/properties
     scrape_type: listing_page
     asset_filter: multifamily
 
   - name: Northmarq
-    url: https://www.northmarq.com/listings/
+    url: https://www.northmarq.com/properties
     scrape_type: listing_page
     asset_filter: multifamily
 
   - name: Walker & Dunlop
-    url: https://www.walkerdunlop.com/investment-sales/listings/
+    url: https://www.walkerdunlop.com/services/investment-sales
     scrape_type: listing_page
     asset_filter: multifamily
 
   - name: Eastdil Secured
-    url: https://www.eastdilsecured.com/transactions/
+    url: https://eastdilsecured.com/
     scrape_type: listing_page
     asset_filter: multifamily
 
   - name: Colliers
-    url: https://www.colliers.com/en-us/properties
+    url: https://www.colliers.com/en/properties
     scrape_type: listing_page
     asset_filter: multifamily
 
   - name: Transwestern
-    url: https://transwestern.com/listings/
+    url: https://transwestern.com/properties
     scrape_type: listing_page
     asset_filter: multifamily
 
   - name: Greysteel
-    url: https://www.greysteel.com/listings/
+    url: https://greysteel.com/properties/
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: Newmark
+    url: https://www.nmrk.com/properties
+    scrape_type: listing_page
+    asset_filter: multifamily
+
+  - name: ARA Newmark
+    url: https://listings.aranewmark.com/
     scrape_type: listing_page
     asset_filter: multifamily
 
 # Regional / specialty shops
   - name: Foundry Commercial
-    url: https://www.foundrycommercial.com/listings/
+    url: https://www.foundrycommercial.com/properties/
     scrape_type: listing_page
     markets: [Atlanta, Charlotte, Raleigh-Durham, Nashville, Tampa, Orlando, Jacksonville]
     asset_filter: multifamily
@@ -74,24 +84,24 @@ brokerages:
     asset_filter: multifamily
 
   - name: The Kirkland Company
-    url: https://www.thekirklandcompany.com/current-listings/
+    url: https://thekirklandco.com/property-search/
     scrape_type: listing_page
     markets: [Indianapolis, Cincinnati, Columbus]
     asset_filter: multifamily
 
   - name: Franklin Street
-    url: https://franklinst.com/listings/
+    url: https://franklinst.com/alllistings/
     scrape_type: listing_page
     markets: [Tampa, Orlando, Jacksonville, Atlanta]
     asset_filter: multifamily
 
   - name: MMG Real Estate Advisors
-    url: https://www.mmgrea.com/active-listings/
+    url: https://mmgrea.com/listings/
     scrape_type: listing_page
     asset_filter: multifamily
 
   - name: Landmark Realty Advisors
-    url: https://www.landmarkrea.com/listings/
+    url: https://landmarkcra.com/listings/
     scrape_type: listing_page
     markets: [Indianapolis, Cincinnati, Columbus, Nashville]
     asset_filter: multifamily
@@ -102,36 +112,15 @@ brokerages:
     markets: [Atlanta]
     asset_filter: multifamily
 
-# Additional regional shops worth monitoring by market
-  - name: Caddis Partners          # Indianapolis/Midwest land & development
-    url: https://www.caddispartners.com/listings/
-    scrape_type: listing_page
-    markets: [Indianapolis]
-
   - name: Lee & Associates
-    url: https://www.lee-associates.com/listings/
+    url: https://www.lee-associates.com/properties/
     scrape_type: listing_page
     markets: [Denver, Las Vegas, Salt Lake City, Charlotte, Atlanta]
 
-  - name: Newmark
-    url: https://www.nmrk.com/listings
-    scrape_type: listing_page
-    asset_filter: multifamily
-
-  - name: ARA Newmark              # Multifamily specialist
-    url: https://www.ara.com/listings/
-    scrape_type: listing_page
-    asset_filter: multifamily
-
-  - name: Cushman Sunbelt Land     # Land-focused listings
-    url: https://www.cushmanwakefield.com/en/united-states/properties/land
-    scrape_type: listing_page
-    asset_filter: land
-
-# Scrape config defaults (can be overridden per brokerage)
+# Scrape config defaults
 defaults:
-  request_delay_seconds: 3        # polite crawl delay between requests
+  request_delay_seconds: 3
   timeout_seconds: 30
-  user_agent: "Mozilla/5.0 (compatible; OM-Scanner/1.0; research bot)"
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   max_retries: 2
   pdf_download: true

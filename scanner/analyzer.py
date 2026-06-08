@@ -84,7 +84,16 @@ LISTING:
 {listing_info}
 {pdf_section}
 
-Analyze this listing against the criteria above. Respond ONLY with a JSON object in this exact format:
+Analyze this listing against the criteria above. Use a BROAD interpretation — if a listing could plausibly be relevant, set matched to true so the human can review it. It is better to flag a potential opportunity than to miss one.
+
+Rules for matched = true:
+- Market matches any target MSA (or is close enough to be in the metro area)
+- Asset type is multifamily, BTR, mixed-use, or development land
+- If unit count is unknown, still match — do not exclude just because units are not stated
+- If it is a land listing in a target market, always match regardless of size
+- Only set matched = false if the asset type is clearly excluded (hotel, office, industrial, retail-only, senior housing, student housing) OR the market is clearly outside all target MSAs
+
+Respond ONLY with a JSON object in this exact format:
 {{
   "matched": true or false,
   "confidence": "high" | "medium" | "low",
