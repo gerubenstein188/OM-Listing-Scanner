@@ -41,18 +41,24 @@ def run_scan():
     total_listings = 0
     total_matches = 0
     total_errors = 0
+    total_claude_errors = 0
 
     logger.info(f"Starting scan across {len(brokerages)} brokerages")
 
     for brokerage in brokerages:
-        logger.info(f"Scanning {brokerage['name']} ...")
+        brokerage_listings = 0
+        logger.info(f"Scanning {brokerage['name']} — URL: {brokerage['url']}")
         try:
             for listing in fetch_listings(brokerage, defaults):
                 total_listings += 1
+                brokerage_listings += 1
                 url = listing["url"]
 
+                # Log every listing found so we can see what the scraper is picking up
+                logger.info(f"  [{brokerage['name']}] Found listing: {listing.get('title', 'No title')[:80]} | {url[:100]}")
+
                 if is_seen(url):
-                    logger.debug(f"Already seen: {url}")
+                    logger.info(f"  Already seen — skipping")
                     continue
 
                 listing_id = record_listing(
@@ -64,16 +70,30 @@ def run_scan():
                 # Download PDF if available
                 pdf_path = None
                 if listing.get("pdf_url") and defaults.get("pdf_download", True):
+                    logger.info(f"  Downloading PDF: {listing['pdf_url'][:100]}")
                     pdf_path = download_pdf(listing["pdf_url"], listing_id)
 
                 # Analyze with Claude
+                logger.info(f"  Sending to Claude for analysis...")
                 result = analyze_listing(listing, criteria, pdf_path)
+
+                # Log Claude's verdict for every listing
+                if result.get("error"):
+                    total_claude_errors += 1
+                    logger.error(f"  Claude error: {result['error']}")
+                else:
+                    logger.info(
+                        f"  Claude result — matched: {result.get('matched')} | "
+                        f"confidence: {result.get('confidence')} | "
+                        f"market: {result.get('market')} | "
+                        f"type: {result.get('asset_type')} | "
+                        f"units: {result.get('units')}"
+                    )
 
                 if result.get("matched"):
                     total_matches += 1
-                    logger.info(f"MATCH: {result.get('title')} — {result.get('market')} {result.get('asset_type')}")
+                    logger.info(f"  *** MATCH: {result.get('title')} — {result.get('market')} {result.get('asset_type')} ***")
 
-                    # Update DB with extracted info
                     record_listing(
                         url=url,
                         brokerage=brokerage["name"],
@@ -85,16 +105,14 @@ def run_scan():
                         asking_price=result.get("asking_price"),
                     )
 
-                    # Create GitHub Issue
                     issue_number = create_github_issue(result)
                     if issue_number:
                         update_issue_number(listing_id, issue_number)
 
-                    # Send Teams alert
                     send_teams_alert(result, issue_number)
-
-                    # AtlasX stub — will activate when MCP is ready
                     add_to_atlasх(result)
+
+            logger.info(f"  {brokerage['name']} done — {brokerage_listings} listings found")
 
         except Exception as e:
             total_errors += 1
@@ -102,8 +120,13 @@ def run_scan():
 
     finish_run(run_id, total_listings, total_matches, total_errors)
     logger.info(
-        f"Scan complete — {total_listings} listings checked, "
-        f"{total_matches} matches, {total_errors} errors"
+        f"\n{'='*60}\n"
+        f"SCAN COMPLETE\n"
+        f"  Listings checked : {total_listings}\n"
+        f"  Matches found    : {total_matches}\n"
+        f"  Scraper errors   : {total_errors}\n"
+        f"  Claude errors    : {total_claude_errors}\n"
+        f"{'='*60}"
     )
     return total_matches
 
