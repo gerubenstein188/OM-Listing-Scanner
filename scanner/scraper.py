@@ -1,22 +1,15 @@
 import time
 import logging
 import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
 from pathlib import Path
 from typing import Generator
+from urllib.parse import urljoin, urlparse
+
+from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 logger = logging.getLogger(__name__)
 
 PDF_DIR = Path(__file__).parent.parent / "data" / "pdfs"
-
-# URL path segments that strongly indicate a property listing detail page
-LISTING_PATH_KEYWORDS = [
-    "property", "listing", "listings", "properties", "offering",
-    "for-sale", "forsale", "investment", "opportunity", "deal",
-    "multifamily", "apartment", "residential", "mixed-use", "land",
-    "development", "build-to-rent", "btr", "portfolio", "asset",
-]
 
 # URL path segments that indicate NON-listing pages to skip
 SKIP_PATH_KEYWORDS = [
@@ -24,157 +17,198 @@ SKIP_PATH_KEYWORDS = [
     "services", "solutions", "insights", "research", "events", "media",
     "subscribe", "login", "register", "privacy", "terms", "sitemap",
     "podcast", "video", "webinar", "awards", "history", "leadership",
-    "project-development-services",  # Cushman service page
+    "project-development-services",
 ]
 
-# Markets to validate against listing text
-TARGET_MARKETS = [
-    "indianapolis", "cincinnati", "columbus", "nashville", "raleigh",
-    "durham", "charlotte", "atlanta", "tampa", "orlando", "jacksonville",
-    "denver", "salt lake", "las vegas", "indy", "research triangle",
-    # State abbreviations as fallback
-    "in", " oh ", " tn ", " nc ", " ga ", " fl ", " co ", " ut ", " nv ",
+# Words in link text that suggest a real property listing
+LISTING_TEXT_HINTS = [
+    "apartment", "unit", "units", "multifamily", "land", "acres",
+    "development", "mixed use", "mixed-use", "townhome", "townhouse",
+    "rental", "for sale", "investment", "btr", "build to rent",
+    "offering", "residential", "portfolio", "community", "property",
 ]
-
-
-def _session(user_agent: str) -> requests.Session:
-    s = requests.Session()
-    s.headers.update({
-        "User-Agent": user_agent,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-    })
-    return s
 
 
 def fetch_listings(brokerage: dict, defaults: dict) -> Generator[dict, None, None]:
     """
-    Yield raw listing dicts from a brokerage config entry.
+    Use a headless Playwright browser to fully render each brokerage listing
+    page, then extract property listing links. Yields listing dicts.
     """
     url = brokerage["url"]
     delay = defaults.get("request_delay_seconds", 3)
-    timeout = defaults.get("timeout_seconds", 30)
-    ua = defaults.get("user_agent", "Mozilla/5.0")
-    retries = defaults.get("max_retries", 2)
+    timeout_ms = defaults.get("timeout_seconds", 30) * 1000
     base_domain = urlparse(url).netloc
+    seen_urls: set[str] = set()
 
-    session = _session(ua)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            viewport={"width": 1280, "height": 900},
+        )
+        page = context.new_page()
 
-    for attempt in range(retries + 1):
+        # Load the listing index page
         try:
-            resp = session.get(url, timeout=timeout)
-            resp.raise_for_status()
-            break
-        except requests.RequestException as e:
-            if attempt == retries:
-                logger.error(f"Failed to fetch {brokerage['name']}: {e}")
+            page.goto(url, timeout=timeout_ms, wait_until="networkidle")
+        except PWTimeout:
+            logger.warning(f"{brokerage['name']}: page load timed out, trying domcontentloaded")
+            try:
+                page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+                page.wait_for_timeout(5000)  # extra 5s for JS to render
+            except Exception as e:
+                logger.error(f"{brokerage['name']}: failed to load — {e}")
+                browser.close()
                 return
-            time.sleep(delay * 2)
+        except Exception as e:
+            logger.error(f"{brokerage['name']}: failed to load — {e}")
+            browser.close()
+            return
 
-    soup = BeautifulSoup(resp.text, "html.parser")
-    seen_urls = set()
+        # Scroll to trigger lazy-loaded listings
+        _scroll_page(page)
 
-    for link in soup.find_all("a", href=True):
-        href = link["href"].strip()
-        if not href or href.startswith("#") or href.startswith("mailto:"):
-            continue
+        # Extract all links from the rendered page
+        links = page.query_selector_all("a[href]")
+        for link in links:
+            try:
+                href = link.get_attribute("href") or ""
+                text = (link.inner_text() or "").strip().lower()
+            except Exception:
+                continue
 
-        full_url = urljoin(url, href)
-        parsed = urlparse(full_url)
+            if not href or href.startswith("#") or href.startswith("mailto:"):
+                continue
 
-        # Stay on same domain
-        if parsed.netloc and parsed.netloc != base_domain:
-            continue
+            full_url = urljoin(url, href)
+            parsed = urlparse(full_url)
 
-        if full_url in seen_urls:
-            continue
-        seen_urls.add(full_url)
+            # Stay on same domain
+            if parsed.netloc and parsed.netloc != base_domain:
+                continue
 
-        path_lower = parsed.path.lower()
-        text = link.get_text(strip=True).lower()
+            if full_url in seen_urls:
+                continue
+            seen_urls.add(full_url)
 
-        # Skip known non-listing paths
-        if any(k in path_lower for k in SKIP_PATH_KEYWORDS):
-            continue
+            path_lower = parsed.path.lower()
 
-        # Direct PDF — check if it looks like an OM
-        if full_url.lower().endswith(".pdf"):
-            if any(k in full_url.lower() or k in text for k in ["om", "offering", "memorandum", "brochure"]):
-                yield {
-                    "url": full_url,
-                    "title": link.get_text(strip=True) or full_url,
-                    "brokerage": brokerage["name"],
-                    "pdf_url": full_url,
-                }
-            continue
+            # Skip known non-listing paths
+            if any(k in path_lower for k in SKIP_PATH_KEYWORDS):
+                continue
 
-        # Check if this looks like a listing detail or listing index page
-        if _looks_like_listing_url(path_lower, text):
-            listing = {
-                "url": full_url,
-                "title": link.get_text(strip=True) or full_url,
-                "brokerage": brokerage["name"],
-                "pdf_url": None,
-            }
-            # Try to find embedded OM PDF on the detail page
-            listing["pdf_url"] = _find_om_pdf(full_url, session, timeout, delay)
-            yield listing
-            time.sleep(delay)
+            # Direct PDF OM
+            if full_url.lower().endswith(".pdf"):
+                if any(k in full_url.lower() or k in text
+                       for k in ["om", "offering", "memorandum", "brochure"]):
+                    yield {
+                        "url": full_url,
+                        "title": text or full_url,
+                        "brokerage": brokerage["name"],
+                        "pdf_url": full_url,
+                    }
+                continue
 
+            # Property detail page — needs at least 2 path segments and a listing hint
+            path_depth = len([p for p in parsed.path.split("/") if p])
+            has_hint = any(k in path_lower or k in text for k in LISTING_TEXT_HINTS)
 
-def _looks_like_listing_url(path: str, link_text: str) -> bool:
-    """Return True if the URL path looks like a property listing page."""
-    # Must have at least one listing keyword in path or link text
-    has_listing_keyword = any(k in path for k in LISTING_PATH_KEYWORDS)
-    has_text_keyword = any(k in link_text for k in [
-        "apartment", "unit", "multifamily", "land", "development",
-        "mixed use", "townhome", "rental", "for sale", "investment",
-        "btr", "build to rent", "offering",
-    ])
+            if path_depth >= 2 and has_hint:
+                # Visit the detail page to extract content + look for OM PDF
+                detail = _scrape_detail_page(
+                    full_url, page, context, timeout_ms, delay
+                )
+                if detail:
+                    detail["brokerage"] = brokerage["name"]
+                    yield detail
+                    time.sleep(delay)
 
-    # Must NOT be a short top-level path (e.g. /services, /about)
-    path_depth = len([p for p in path.split("/") if p])
-    is_deep_enough = path_depth >= 2
-
-    return (has_listing_keyword or has_text_keyword) and is_deep_enough
+        browser.close()
 
 
-def _find_om_pdf(listing_url: str, session: requests.Session, timeout: int, delay: float) -> str | None:
-    """Fetch a listing detail page and look for an OM PDF download link."""
+def _scroll_page(page, steps: int = 5):
+    """Scroll down the page in steps to trigger lazy-loaded content."""
+    for i in range(1, steps + 1):
+        page.evaluate(f"window.scrollTo(0, document.body.scrollHeight * {i}/{steps})")
+        page.wait_for_timeout(800)
+
+
+def _scrape_detail_page(
+    url: str, page, context, timeout_ms: int, delay: float
+) -> dict | None:
+    """
+    Open a listing detail page in a new tab, extract the title, visible text
+    summary, and any OM PDF link. Returns a listing dict or None on failure.
+    """
     try:
-        time.sleep(delay)
-        resp = session.get(listing_url, timeout=timeout)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "html.parser")
+        detail_page = context.new_page()
+        detail_page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+        detail_page.wait_for_timeout(3000)
 
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            href_lower = href.lower()
-            text = link.get_text(strip=True).lower()
-            if href_lower.endswith(".pdf") or any(
-                k in href_lower or k in text
-                for k in ["offering memorandum", "om download", "download om",
-                          "brochure", "download brochure", "property brochure"]
-            ):
-                return urljoin(listing_url, href)
+        title = detail_page.title() or url
+
+        # Grab visible page text (first 8000 chars is plenty for Claude)
+        body_text = detail_page.inner_text("body")[:8000] if detail_page.query_selector("body") else ""
+
+        # Look for OM PDF link
+        pdf_url = None
+        pdf_links = detail_page.query_selector_all("a[href]")
+        for link in pdf_links:
+            try:
+                href = (link.get_attribute("href") or "").lower()
+                text = (link.inner_text() or "").lower()
+                if href.endswith(".pdf") or any(
+                    k in href or k in text
+                    for k in ["offering memorandum", "om download", "download om",
+                              "brochure", "download brochure", "property brochure",
+                              "view om", "get om"]
+                ):
+                    pdf_url = urljoin(url, link.get_attribute("href"))
+                    break
+            except Exception:
+                continue
+
+        detail_page.close()
+
+        return {
+            "url": url,
+            "title": title,
+            "body_text": body_text,
+            "pdf_url": pdf_url,
+        }
+
     except Exception as e:
-        logger.debug(f"Could not find PDF at {listing_url}: {e}")
-    return None
+        logger.debug(f"Could not scrape detail page {url}: {e}")
+        try:
+            detail_page.close()
+        except Exception:
+            pass
+        return None
 
 
-def download_pdf(pdf_url: str, listing_id: int, session: requests.Session = None, timeout: int = 30) -> Path | None:
-    """Download a PDF to the local data/pdfs directory. Returns the local path."""
+def download_pdf(
+    pdf_url: str,
+    listing_id: int,
+    timeout: int = 30,
+) -> Path | None:
+    """Download a PDF to data/pdfs/. Returns local path or None."""
     PDF_DIR.mkdir(parents=True, exist_ok=True)
     dest = PDF_DIR / f"{listing_id}.pdf"
     if dest.exists():
         return dest
-
-    if session is None:
-        session = _session("Mozilla/5.0")
     try:
-        resp = session.get(pdf_url, timeout=timeout, stream=True)
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            )
+        }
+        resp = requests.get(pdf_url, headers=headers, timeout=timeout, stream=True)
         resp.raise_for_status()
         with open(dest, "wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):

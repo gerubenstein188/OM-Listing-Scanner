@@ -36,11 +36,15 @@ def analyze_listing(listing: dict, criteria: dict, pdf_path: Path | None = None)
     Send listing info (and optionally PDF text) to Claude for analysis.
     Returns a structured result dict.
     """
+    # Content priority: PDF > scraped body text > listing title only
     pdf_text = ""
     if pdf_path and pdf_path.exists():
         pdf_text = extract_text_from_pdf(pdf_path)
 
-    prompt = _build_prompt(listing, criteria, pdf_text)
+    body_text = listing.get("body_text", "")
+    content_text = pdf_text or body_text  # prefer PDF, fall back to page body
+
+    prompt = _build_prompt(listing, criteria, content_text)
 
     try:
         response = client.messages.create(
@@ -56,7 +60,7 @@ def analyze_listing(listing: dict, criteria: dict, pdf_path: Path | None = None)
         return {"matched": False, "error": str(e), "url": listing["url"]}
 
 
-def _build_prompt(listing: dict, criteria: dict, pdf_text: str) -> str:
+def _build_prompt(listing: dict, criteria: dict, content_text: str) -> str:
     markets = [m["name"] for m in criteria.get("markets", [])]
     mf = criteria.get("asset_types", {}).get("multifamily", {})
     btr = criteria.get("asset_types", {}).get("build_to_rent", {})
@@ -78,7 +82,12 @@ LISTING:
 - URL: {listing.get('url', '')}
 """
 
-    pdf_section = f"\nOFFERING MEMORANDUM TEXT (first 100k chars):\n{pdf_text}" if pdf_text else "\n(No PDF text available — analyze based on listing info only)"
+    if pdf_text:
+        pdf_section = f"\nOFFERING MEMORANDUM / PDF TEXT:\n{content_text}"
+    elif body_text:
+        pdf_section = f"\nLISTING PAGE CONTENT (scraped from website):\n{content_text}"
+    else:
+        pdf_section = "\n(No content available — analyze based on listing title and URL only)"
 
     return f"""{criteria_summary}
 {listing_info}
