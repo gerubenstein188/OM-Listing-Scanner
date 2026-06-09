@@ -43,7 +43,19 @@ def run_scan():
     total_errors = 0
     total_claude_errors = 0
 
+    # Startup diagnostic — print exact config being used
+    import subprocess, sys
+    logger.info(f"Python: {sys.version}")
+    try:
+        pkgs = subprocess.check_output([sys.executable, "-m", "pip", "list"], text=True)
+        for line in pkgs.splitlines():
+            if any(k in line.lower() for k in ["playwright", "anthropic", "requests", "beautifulsoup"]):
+                logger.info(f"  Package: {line}")
+    except Exception:
+        pass
     logger.info(f"Starting scan across {len(brokerages)} brokerages")
+    for b in brokerages:
+        logger.info(f"  Config URL → {b['name']}: {b['url']}")
 
     for brokerage in brokerages:
         brokerage_listings = 0
