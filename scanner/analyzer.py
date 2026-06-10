@@ -82,10 +82,8 @@ LISTING:
 - URL: {listing.get('url', '')}
 """
 
-    if pdf_text:
-        pdf_section = f"\nOFFERING MEMORANDUM / PDF TEXT:\n{content_text}"
-    elif body_text:
-        pdf_section = f"\nLISTING PAGE CONTENT (scraped from website):\n{content_text}"
+    if content_text:
+        pdf_section = f"\nLISTING CONTENT:\n{content_text}"
     else:
         pdf_section = "\n(No content available — analyze based on listing title and URL only)"
 
