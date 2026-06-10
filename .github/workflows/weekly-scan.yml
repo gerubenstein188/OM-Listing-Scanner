@@ -37,6 +37,17 @@ jobs:
       - name: Install Playwright browsers
         run: playwright install chromium --with-deps
 
+      - name: Verify files before running
+        run: |
+          echo "=== git log ==="
+          git log --oneline -3
+          echo "=== scraper.py first 5 lines ==="
+          head -5 scanner/scraper.py
+          echo "=== brokerage URLs in config ==="
+          grep "url:" config/brokerages.yaml
+          echo "=== installed packages ==="
+          pip show playwright anthropic
+
       - name: Run OM scanner
         working-directory: scanner
         env:
