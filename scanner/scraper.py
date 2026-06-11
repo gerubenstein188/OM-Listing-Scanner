@@ -4,6 +4,7 @@ import requests
 from pathlib import Path
 from typing import Generator
 from urllib.parse import urljoin, urlparse
+import threading
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
@@ -35,10 +36,12 @@ def fetch_listings(brokerage: dict, defaults: dict) -> Generator[dict, None, Non
     page, then extract property listing links. Yields listing dicts.
     """
     url = brokerage["url"]
-    delay = defaults.get("request_delay_seconds", 3)
+    delay = defaults.get("request_delay_seconds", 2)
     timeout_ms = defaults.get("timeout_seconds", 30) * 1000
+    max_listings = defaults.get("max_listings_per_brokerage", 10)
     base_domain = urlparse(url).netloc
     seen_urls: set[str] = set()
+    listings_yielded = 0
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -118,12 +121,17 @@ def fetch_listings(brokerage: dict, defaults: dict) -> Generator[dict, None, Non
             has_hint = any(k in path_lower or k in text for k in LISTING_TEXT_HINTS)
 
             if path_depth >= 2 and has_hint:
+                if listings_yielded >= max_listings:
+                    logger.info(f"  Reached max listings ({max_listings}) for {brokerage['name']} — stopping")
+                    break
+
                 # Visit the detail page to extract content + look for OM PDF
                 detail = _scrape_detail_page(
                     full_url, page, context, timeout_ms, delay
                 )
                 if detail:
                     detail["brokerage"] = brokerage["name"]
+                    listings_yielded += 1
                     yield detail
                     time.sleep(delay)
 

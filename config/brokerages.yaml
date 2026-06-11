@@ -119,8 +119,10 @@ brokerages:
 
 # Scrape config defaults
 defaults:
-  request_delay_seconds: 3
+  request_delay_seconds: 2
   timeout_seconds: 30
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   max_retries: 2
   pdf_download: true
+  max_listings_per_brokerage: 10   # max new listings to analyze per site per run
+  brokerage_timeout_seconds: 300   # skip a brokerage if it takes longer than 5 minutes

@@ -5,6 +5,7 @@ Run manually or via GitHub Actions weekly cron.
 """
 import logging
 import sys
+import time
 from pathlib import Path
 import yaml
 
@@ -53,15 +54,22 @@ def run_scan():
                 logger.info(f"  Package: {line}")
     except Exception:
         pass
-    logger.info(f"Starting scan across {len(brokerages)} brokerages")
+    brokerage_timeout = defaults.get("brokerage_timeout_seconds", 300)
+    logger.info(f"Starting scan across {len(brokerages)} brokerages (max {brokerage_timeout}s per brokerage)")
     for b in brokerages:
         logger.info(f"  Config URL → {b['name']}: {b['url']}")
 
     for brokerage in brokerages:
         brokerage_listings = 0
+        brokerage_start = time.time()
         logger.info(f"Scanning {brokerage['name']} — URL: {brokerage['url']}")
         try:
             for listing in fetch_listings(brokerage, defaults):
+                # Hard timeout per brokerage
+                if time.time() - brokerage_start > brokerage_timeout:
+                    logger.warning(f"  {brokerage['name']} exceeded {brokerage_timeout}s timeout — moving on")
+                    break
+
                 total_listings += 1
                 brokerage_listings += 1
                 url = listing["url"]
